@@ -1,0 +1,133 @@
+---
+title: "clustering-R-Exercise"
+author: "Giollamhir"
+date: "July 13, 2017"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+ This mini-project is based on the K-Means exercise from 'R in Action'
+ Go here for the original blog post and solutions
+ http://www.r-bloggers.com/k-means-clustering-from-r-in-action/
+
+```{r start, include=FALSE}
+
+#Exercise 0: Install these packages if you don't have them already
+
+# install.packages(c("cluster", "rattle","NbClust"))
+
+# Now load the data and look at the first few rows
+data(wine, package="rattle")
+head(wine)
+```
+ 
+ Exercise 1: Remove the first column from the data and scale it using the scale() function
+ *Note.*  _I did this instruction at first using wine$Type = NULL because $Type is the first column, but the last exercise requires using the Type column so I removed that code._ 
+ 
+  Now we'd like to cluster the data using K-Means. How do we decide how many clusters to use if you don't know that already? We'll try two methods.
+
+ Method 1: 
+ > A plot of the total within-groups sums of squares against the number of clusters in a K-means solution can be helpful. A bend in the  graph can suggest the appropriate number of clusters. 
+ 
+ 
+```{r ex1, include=TRUE}
+wine2 <- wine
+wine2$Type = NULL   # that's how I did it, I see on the blog you can also do it 
+#  by omitting it from the new definition all as one step df <- scale(wine[-1])
+
+
+str(wine2)
+
+# scale  it using the scale() function
+wine2 <- scale(wine2)
+
+# Now cluster the data
+wssplot <- function(data, nc=15, seed=1234){
+	              wss <- (nrow(data)-1)*sum(apply(data,2,var)) # sums variances across
+	              # 2nd column of the df in this case wine2
+               	      for (i in 2:nc){   # here, passing  15 as the limit
+               	          # as the max. number of clusters to calculate and graph
+		        set.seed(seed)
+	                wss[i] <- sum(kmeans(data, centers=i)$withinss)} # kmeans provides
+	                # withinss a vector listing within-cluster sum of squares, one component                   # per cluster. this runs kmeans then provides the sum of squares for each
+	                # targeted number of clusters 1 - 15
+
+		      plot(1:nc, wss, type="b", xlab="Number of Clusters",
+	                        ylab="Within groups sum of squares")
+	   }
+
+wssplot(wine2)
+
+```
+
+
+ Exercise 2:
+ **Questions.**
+ 
+   * How many clusters does this method suggest?
+   * Why does this method work? What's the intuition behind it?
+   * Look at the code for wssplot() and figure out how it works
+   
+   **Answers.**
+   
+   * Two or three clusters would be  most efficent, depending on the application. 
+   * The sum of sqares indicates the difference between the points in the clusters. Where the tail is flat would indicate not that much differentiation between some of the clusters; where the curve is steep at the start would indicate a great deal of difference contained between the first and second clusters, so the clusters are less meaningful, or a bit eclectic.
+   * For explanation of the wssplot() code see comments in the code chunk above.
+
+ Method 2: Use the NbClust library, which runs many experiments and gives a distribution of potential number of clusters.
+
+```{r ex2, echo=FALSE}
+
+library(NbClust)
+set.seed(1234)
+nc <- NbClust(wine2, min.nc=2, max.nc=15, method="kmeans")
+barplot(table(nc$Best.n[1,]),
+	          xlab="Numer of Clusters", ylab="Number of Criteria",
+		            main="Number of Clusters Chosen by 26 Criteria")
+
+```
+ 
+ Exercise 3: How many clusters does this method suggest?
+
+*Answer.* This method suggests three clusters.
+
+ Exercise 4: Once you've picked the number of clusters, run k-means using this number of clusters. Output the result of calling kmeans()  into a variable fit.km
+ 
+```{r ex4, include=TRUE}
+
+ fit.km <- kmeans(wine2, centers=3, iter.max=1000)
+
+```
+
+ Now we want to evaluate how well this clustering does.
+
+ Exercise 5: using the table() function, show how the clusters in fit.km$clusters compares to the actual wine types in wine$Type. Would you consider this a good clustering?
+ 
+ 
+```{r ex5, echo=FALSE}
+
+
+check <- table(wine$Type, fit.km$cluster)
+check
+
+```
+
+ *Answer.* Yes. I'd say the three types correspond very well with the three clusters: type 1 corresponde 100% to the first cluster, and Type 3 corresponds fully with the second cluster. Type two has a few wines in other categories but 92% of that type are clustered into  the third cluster.
+ 
+ Exercise 6:
+ 
+ * Visualize these clusters using  function clusplot() from the cluster library 
+ * Would you consider this a good clustering?
+ 
+ *Answer.* Yes. See plot:
+ 
+```{r ex6, echo=FALSE}
+
+# reference http://www.statmethods.net/advstats/cluster.html
+library(cluster) 
+clusplot(wine2, fit.km$cluster, color=TRUE, shade=TRUE, 
+  	labels=2, lines=0)
+
+```
